@@ -1,5 +1,21 @@
 package com.example.backend.kafka;
 
-public class KafkaController {
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
+public class KafkaController {
+    private final KafkaProducerService kafkaProducerService;
+
+    public KafkaController(KafkaProducerService kafkaProducerService) {
+        this.kafkaProducerService = kafkaProducerService;
+    }
+
+    @GetMapping("/send_raw_metrics")
+    public ResponseEntity<String> sendRawMetrics(@RequestParam String message) {
+        kafkaProducerService.sendRawMetrics(message);
+        return ResponseEntity.ok("Message sent to Kafka: " + message);
+    }
 }
