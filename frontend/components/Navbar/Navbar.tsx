@@ -11,11 +11,8 @@ export default function Navbar() {
           <a href="/dashboard" className="hover:text-gray-400">
             Dashboard
           </a>
-          <a href="/incidents" className="hover:text-gray-400">
-            Incidents
-          </a>
-          <a href="/settings" className="hover:text-gray-400">
-            Settings
+          <a href="/metrics-table" className="hover:text-gray-400">
+            Metrics
           </a>
         </div>
       </div>

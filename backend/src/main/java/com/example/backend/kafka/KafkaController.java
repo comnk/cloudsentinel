@@ -13,9 +13,9 @@ public class KafkaController {
         this.kafkaProducerService = kafkaProducerService;
     }
 
-    @GetMapping("/send_raw_metrics")
-    public ResponseEntity<String> sendRawMetrics(@RequestParam String message) {
-        kafkaProducerService.sendRawMetrics(message);
+    @GetMapping("/send-raw-logs")
+    public ResponseEntity<String> sendRawLogs(@RequestParam String message) {
+        kafkaProducerService.sendRawLogs(message);
         return ResponseEntity.ok("Message sent to Kafka: " + message);
     }
 }

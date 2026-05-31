@@ -41,6 +41,8 @@ services:
     command: |
       "
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic metrics.raw
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic logs.raw
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic features.processed
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic anomalies.detected
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic incidents.created
       echo 'Topics created.'
@@ -53,13 +55,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: aiplatform
-      POSTGRES_USER: aiplatform
-      POSTGRES_PASSWORD: aiplatform
+      POSTGRES_DB: astraquant-db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aiplatform"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d astraquant-db -h localhost -p 5432"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -83,12 +85,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aiplatform
-      SPRING_DATASOURCE_USERNAME: aiplatform
-      SPRING_DATASOURCE_PASSWORD: aiplatform
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/astraquant-db
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      GEMINI_KEY: ${GEMINI_KEY}
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
