@@ -7,18 +7,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 @Service
 public class KafkaConsumerService {
 
+    public static final String LATEST_METRIC_KEY = "metric:latest";
+
     private static final Logger log = LoggerFactory.getLogger(KafkaConsumerService.class);
     private final MetricSampleRepository repository;
+    private final RedisTemplate<String, MetricSampleEntity> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public KafkaConsumerService(MetricSampleRepository repository) {
+    public KafkaConsumerService(MetricSampleRepository repository,
+                                RedisTemplate<String, MetricSampleEntity> redisTemplate) {
         this.repository = repository;
+        this.redisTemplate = redisTemplate;
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
@@ -33,6 +39,7 @@ public class KafkaConsumerService {
             entity.setMemoryUsage(dto.getMemoryUsage());
             entity.setDiskUsage(dto.getDiskUsage());
             repository.save(entity);
+            redisTemplate.opsForValue().set(LATEST_METRIC_KEY, entity);
             log.info("Saved metric: host={} cpu={}", dto.getHost(), dto.getCpuUsage());
         } catch (Exception e) {
             log.error("Failed to process metric event: {}", e.getMessage());
