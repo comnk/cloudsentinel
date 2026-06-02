@@ -120,6 +120,19 @@ services:
       redis:
         condition: service_healthy
 
+  anomaly-service:
+    build:
+      context: ./ai
+      dockerfile: anomaly-service/Dockerfile
+    container_name: anomaly-service
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
   frontend:
     build:
       context: ./frontend

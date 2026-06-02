@@ -3,6 +3,11 @@ package com.example.backend.kafka;
 import com.example.backend.metricsample.MetricSampleDTO;
 import com.example.backend.metricsample.MetricSampleEntity;
 import com.example.backend.metricsample.MetricSampleRepository;
+
+import com.example.backend.anomaly.AnomalyDTO;
+import com.example.backend.anomaly.AnomalyEntity;
+import com.example.backend.anomaly.AnomalyRepository;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
@@ -17,13 +22,16 @@ public class KafkaConsumerService {
     public static final String LATEST_METRIC_KEY = "metric:latest";
 
     private static final Logger log = LoggerFactory.getLogger(KafkaConsumerService.class);
-    private final MetricSampleRepository repository;
+    private final MetricSampleRepository metricSampleRepository;
+    private final AnomalyRepository anomalyRepository;
     private final RedisTemplate<String, MetricSampleEntity> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public KafkaConsumerService(MetricSampleRepository repository,
-                                RedisTemplate<String, MetricSampleEntity> redisTemplate) {
-        this.repository = repository;
+    public KafkaConsumerService(MetricSampleRepository metricSampleRepository,
+            AnomalyRepository anomalyRepository,
+            RedisTemplate<String, MetricSampleEntity> redisTemplate) {
+        this.metricSampleRepository = metricSampleRepository;
+        this.anomalyRepository = anomalyRepository;
         this.redisTemplate = redisTemplate;
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
@@ -38,7 +46,7 @@ public class KafkaConsumerService {
             entity.setCpuUsage(dto.getCpuUsage());
             entity.setMemoryUsage(dto.getMemoryUsage());
             entity.setDiskUsage(dto.getDiskUsage());
-            repository.save(entity);
+            metricSampleRepository.save(entity);
             redisTemplate.opsForValue().set(LATEST_METRIC_KEY, entity);
             log.info("Saved metric: host={} cpu={}", dto.getHost(), dto.getCpuUsage());
         } catch (Exception e) {
@@ -60,7 +68,18 @@ public class KafkaConsumerService {
 
     @KafkaListener(topics = "anomalies.detected", groupId = "backend-group")
     public void consumeDetectedAnomalies(String message) {
-        System.out.println("Consumed detected anomalies: " + message);
-        // Add logic to process anomalies if needed
+        try {
+            AnomalyDTO dto = objectMapper.readValue(message, AnomalyDTO.class);
+            AnomalyEntity entity = new AnomalyEntity();
+            entity.setTimestamp(dto.getTimestamp());
+            entity.setType(dto.getType());
+            entity.setSeverity(dto.getSeverity());
+            entity.setScore(dto.getScore());
+            entity.setMessage(dto.getMessage());
+            anomalyRepository.save(entity);
+            log.info("Saved anomaly: type={} severity={}", dto.getType(), dto.getSeverity());
+        } catch (Exception e) {
+            log.error("Failed to process anomaly event: {}", e.getMessage());
+        }
     }
 }
