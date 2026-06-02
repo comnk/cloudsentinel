@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/food_entry/my_entries").authenticated()
                         .requestMatchers("/api/food_entry/**").permitAll()
                         .requestMatchers("/metrics/**").permitAll()
+                        .requestMatchers("/anomalies/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

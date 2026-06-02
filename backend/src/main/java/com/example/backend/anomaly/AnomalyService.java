@@ -2,6 +2,9 @@ package com.example.backend.anomaly;
 
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+
+@Service
 public class AnomalyService {
     private final AnomalyRepository anomalyRepository;
 
