@@ -4,7 +4,10 @@ import os
 
 from confluent_kafka import Consumer, KafkaError
 from anomaly_producer import make_producer, publish
-from threshold_detector import detect
+from threshold_detector import detect as threshold_detect
+from anomaly_event import AnomalyEvent
+import feature_window
+from model import isolation_forest
 
 log = logging.getLogger(__name__)
 
@@ -34,9 +37,26 @@ def run() -> None:
 
             try:
                 metric = json.loads(msg.value().decode("utf-8"))
-                anomaly = detect(metric)
-                if anomaly:
-                    publish(producer, anomaly)
+                feature_window.add_metric(metric)
+
+                if feature_window.is_ready() and isolation_forest.is_loaded():
+                    features = feature_window.get_features()
+                    result = isolation_forest.detect(metric, features)
+                    if result:
+                        anomaly = AnomalyEvent(
+                            timestamp=metric.get("timestamp", ""),
+                            host=metric.get("host", "unknown"),
+                            type=result["type"],
+                            severity=result["severity"],
+                            score=result["score"],
+                            message=result["message"],
+                        )
+                        publish(producer, anomaly)
+                else:
+                    # window still warming up or model not trained yet — use rules
+                    anomaly = threshold_detect(metric)
+                    if anomaly:
+                        publish(producer, anomaly)
             except Exception as e:
                 log.error("Failed to process message: %s", e)
     finally:
