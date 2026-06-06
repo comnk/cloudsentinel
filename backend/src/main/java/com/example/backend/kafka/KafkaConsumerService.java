@@ -7,6 +7,7 @@ import com.example.backend.metricsample.MetricSampleRepository;
 import com.example.backend.anomaly.AnomalyDTO;
 import com.example.backend.anomaly.AnomalyEntity;
 import com.example.backend.anomaly.AnomalyRepository;
+import com.example.backend.investigation.InvestigationService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class KafkaConsumerService {
@@ -24,14 +26,17 @@ public class KafkaConsumerService {
     private static final Logger log = LoggerFactory.getLogger(KafkaConsumerService.class);
     private final MetricSampleRepository metricSampleRepository;
     private final AnomalyRepository anomalyRepository;
+    private final InvestigationService investigationService;
     private final RedisTemplate<String, MetricSampleEntity> redisTemplate;
     private final ObjectMapper objectMapper;
 
     public KafkaConsumerService(MetricSampleRepository metricSampleRepository,
             AnomalyRepository anomalyRepository,
+            InvestigationService investigationService,
             RedisTemplate<String, MetricSampleEntity> redisTemplate) {
         this.metricSampleRepository = metricSampleRepository;
         this.anomalyRepository = anomalyRepository;
+        this.investigationService = investigationService;
         this.redisTemplate = redisTemplate;
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
@@ -66,6 +71,7 @@ public class KafkaConsumerService {
         // Add logic to process features if needed
     }
 
+    @Transactional
     @KafkaListener(topics = "anomalies.detected", groupId = "backend-group")
     public void consumeDetectedAnomalies(String message) {
         try {
@@ -81,7 +87,8 @@ public class KafkaConsumerService {
                 entity.setExplanation(String.join(" | ", dto.getExplanation()));
             }
             anomalyRepository.save(entity);
-            log.info("Saved anomaly: type={} severity={}", dto.getType(), dto.getSeverity());
+            investigationService.createFromAnomaly(entity);
+            log.info("Saved anomaly and opened investigation: type={} severity={}", dto.getType(), dto.getSeverity());
         } catch (Exception e) {
             log.error("Failed to process anomaly event: {}", e.getMessage());
         }

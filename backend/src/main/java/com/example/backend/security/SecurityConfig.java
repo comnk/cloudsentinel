@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/metrics/**").permitAll()
                         .requestMatchers("/anomalies/**").permitAll()
                         .requestMatchers("/models/**").permitAll()
+                        .requestMatchers("/investigations/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

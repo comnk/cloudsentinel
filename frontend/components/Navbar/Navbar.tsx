@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import "./Navbar.scss";
 
 export default function Navbar() {
@@ -8,12 +9,15 @@ export default function Navbar() {
       <div className="container mx-auto flex items-center justify-between">
         <div className="text-xl font-bold">AstraQuant</div>
         <div className="space-x-4">
-          <a href="/dashboard" className="hover:text-gray-400">
+          <Link href="/dashboard" className="hover:text-gray-400">
             Dashboard
-          </a>
-          <a href="/metrics-table" className="hover:text-gray-400">
+          </Link>
+          <Link href="/metrics-table" className="hover:text-gray-400">
             Metrics
-          </a>
+          </Link>
+          <Link href="/investigations" className="hover:text-gray-400">
+            Investigations
+          </Link>
         </div>
       </div>
     </nav>
