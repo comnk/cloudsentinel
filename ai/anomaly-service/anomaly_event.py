@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -9,3 +9,4 @@ class AnomalyEvent:
     severity: str
     score: float
     message: str
+    explanation: list[str] = field(default_factory=list)

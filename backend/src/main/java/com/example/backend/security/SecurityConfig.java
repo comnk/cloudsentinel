@@ -54,6 +54,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/food_entry/**").permitAll()
                         .requestMatchers("/metrics/**").permitAll()
                         .requestMatchers("/anomalies/**").permitAll()
+                        .requestMatchers("/models/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

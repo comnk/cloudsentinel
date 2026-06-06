@@ -127,11 +127,20 @@ services:
     container_name: anomaly-service
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: astraquant-db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./ai/anomaly-service/model:/app/model
     depends_on:
       kafka:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:

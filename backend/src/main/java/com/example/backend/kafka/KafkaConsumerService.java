@@ -72,10 +72,14 @@ public class KafkaConsumerService {
             AnomalyDTO dto = objectMapper.readValue(message, AnomalyDTO.class);
             AnomalyEntity entity = new AnomalyEntity();
             entity.setTimestamp(dto.getTimestamp());
+            entity.setHost(dto.getHost());
             entity.setType(dto.getType());
             entity.setSeverity(dto.getSeverity());
             entity.setScore(dto.getScore());
             entity.setMessage(dto.getMessage());
+            if (dto.getExplanation() != null && !dto.getExplanation().isEmpty()) {
+                entity.setExplanation(String.join(" | ", dto.getExplanation()));
+            }
             anomalyRepository.save(entity);
             log.info("Saved anomaly: type={} severity={}", dto.getType(), dto.getSeverity());
         } catch (Exception e) {

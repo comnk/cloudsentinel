@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Table;
 
 import lombok.Data;
@@ -21,8 +22,12 @@ public class AnomalyEntity {
     private Long id;
 
     private Instant timestamp;
+    private String host;
     private String type;
     private String severity;
     private Double score;
     private String message;
+
+    @Column(columnDefinition = "TEXT")
+    private String explanation;
 }

@@ -6,5 +6,7 @@ RUN pip install --no-cache-dir \
     joblib==1.4.2 \
     numpy==2.4.4 \
     psycopg2-binary==2.9.10
+RUN pip install --no-cache-dir \
+    torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 COPY anomaly-service/ .
 CMD ["python", "main.py"]

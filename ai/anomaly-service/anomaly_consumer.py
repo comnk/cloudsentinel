@@ -7,7 +7,8 @@ from anomaly_producer import make_producer, publish
 from threshold_detector import detect as threshold_detect
 from anomaly_event import AnomalyEvent
 import feature_window
-from model import isolation_forest
+from model import isolation_forest, autoencoder
+from explainer import explain
 
 log = logging.getLogger(__name__)
 
@@ -39,21 +40,28 @@ def run() -> None:
                 metric = json.loads(msg.value().decode("utf-8"))
                 feature_window.add_metric(metric)
 
-                if feature_window.is_ready() and isolation_forest.is_loaded():
+                result = None
+                if feature_window.is_ready():
                     features = feature_window.get_features()
-                    result = isolation_forest.detect(metric, features)
-                    if result:
-                        anomaly = AnomalyEvent(
-                            timestamp=metric.get("timestamp", ""),
-                            host=metric.get("host", "unknown"),
-                            type=result["type"],
-                            severity=result["severity"],
-                            score=result["score"],
-                            message=result["message"],
-                        )
-                        publish(producer, anomaly)
-                else:
-                    # window still warming up or model not trained yet — use rules
+                    if autoencoder.is_loaded():
+                        result = autoencoder.detect(metric, features)
+                    elif isolation_forest.is_loaded():
+                        result = isolation_forest.detect(metric, features)
+
+                if result:
+                    factors = explain(metric, feature_window.get_averages())
+                    anomaly = AnomalyEvent(
+                        timestamp=metric.get("timestamp", ""),
+                        host=metric.get("host", "unknown"),
+                        type=result["type"],
+                        severity=result["severity"],
+                        score=result["score"],
+                        message=result["message"],
+                        explanation=factors,
+                    )
+                    publish(producer, anomaly)
+                elif not feature_window.is_ready():
+                    # window still warming up — use threshold rules
                     anomaly = threshold_detect(metric)
                     if anomaly:
                         publish(producer, anomaly)
