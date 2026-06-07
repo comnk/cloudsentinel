@@ -8,6 +8,14 @@ import com.example.backend.anomaly.AnomalyDTO;
 import com.example.backend.anomaly.AnomalyEntity;
 import com.example.backend.anomaly.AnomalyRepository;
 import com.example.backend.investigation.InvestigationService;
+import com.example.backend.k8s.pod.PodDTO;
+import com.example.backend.k8s.pod.PodService;
+import com.example.backend.k8s.event.ClusterEventDTO;
+import com.example.backend.k8s.event.ClusterEventService;
+import com.example.backend.k8s.deployment.DeploymentDTO;
+import com.example.backend.k8s.deployment.DeploymentService;
+import com.example.backend.k8s.node.NodeDTO;
+import com.example.backend.k8s.node.NodeService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -27,16 +35,28 @@ public class KafkaConsumerService {
     private final MetricSampleRepository metricSampleRepository;
     private final AnomalyRepository anomalyRepository;
     private final InvestigationService investigationService;
+    private final PodService podService;
+    private final ClusterEventService clusterEventService;
+    private final DeploymentService deploymentService;
+    private final NodeService nodeService;
     private final RedisTemplate<String, MetricSampleEntity> redisTemplate;
     private final ObjectMapper objectMapper;
 
     public KafkaConsumerService(MetricSampleRepository metricSampleRepository,
             AnomalyRepository anomalyRepository,
             InvestigationService investigationService,
+            PodService podService,
+            ClusterEventService clusterEventService,
+            DeploymentService deploymentService,
+            NodeService nodeService,
             RedisTemplate<String, MetricSampleEntity> redisTemplate) {
         this.metricSampleRepository = metricSampleRepository;
         this.anomalyRepository = anomalyRepository;
         this.investigationService = investigationService;
+        this.podService = podService;
+        this.clusterEventService = clusterEventService;
+        this.deploymentService = deploymentService;
+        this.nodeService = nodeService;
         this.redisTemplate = redisTemplate;
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
@@ -59,16 +79,50 @@ public class KafkaConsumerService {
         }
     }
 
-    @KafkaListener(topics = "logs.raw", groupId = "backend-group")
-    public void consumeRawLogs(String message) {
-        System.out.println("Consumed raw logs: " + message);
-        // Add logic to process raw logs if needed
+    @KafkaListener(topics = "k8s.pods", groupId = "backend-group")
+    public void consumePodStatus(String message) {
+        try {
+            PodDTO dto = objectMapper.readValue(message, PodDTO.class);
+            podService.save(dto);
+            log.info("Saved pod: name={} namespace={} status={}", dto.getPodName(), dto.getNamespace(),
+                    dto.getStatus());
+        } catch (Exception e) {
+            log.error("Failed to process pod event: {}", e.getMessage());
+        }
     }
 
-    @KafkaListener(topics = "features.processed", groupId = "backend-group")
-    public void consumeProcessedFeatures(String message) {
-        System.out.println("Consumed processed features: " + message);
-        // Add logic to process features if needed
+    @KafkaListener(topics = "k8s.events", groupId = "backend-group")
+    public void consumeClusterEvent(String message) {
+        try {
+            ClusterEventDTO dto = objectMapper.readValue(message, ClusterEventDTO.class);
+            clusterEventService.save(dto);
+            log.info("Saved cluster event: reason={} resource={}", dto.getReason(), dto.getResource());
+        } catch (Exception e) {
+            log.error("Failed to process cluster event: {}", e.getMessage());
+        }
+    }
+
+    @KafkaListener(topics = "k8s.deployments", groupId = "backend-group")
+    public void consumeDeploymentEvent(String message) {
+        try {
+            DeploymentDTO dto = objectMapper.readValue(message, DeploymentDTO.class);
+            deploymentService.save(dto);
+            log.info("Saved deployment: name={} namespace={} replicas={}", dto.getDeploymentName(), dto.getNamespace(),
+                    dto.getReplicas());
+        } catch (Exception e) {
+            log.error("Failed to process deployment event: {}", e.getMessage());
+        }
+    }
+
+    @KafkaListener(topics = "k8s.nodes", groupId = "backend-group")
+    public void consumeNodeStatus(String message) {
+        try {
+            NodeDTO dto = objectMapper.readValue(message, NodeDTO.class);
+            nodeService.save(dto);
+            log.info("Saved node: name={} status={}", dto.getNodeName(), dto.getStatus());
+        } catch (Exception e) {
+            log.error("Failed to process node event: {}", e.getMessage());
+        }
     }
 
     @Transactional

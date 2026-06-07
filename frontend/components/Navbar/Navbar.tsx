@@ -18,6 +18,18 @@ export default function Navbar() {
           <Link href="/investigations" className="hover:text-gray-400">
             Investigations
           </Link>
+          <Link href="/k8s/overview" className="hover:text-gray-400">
+            Cluster
+          </Link>
+          <Link href="/k8s/pods" className="hover:text-gray-400">
+            Pods
+          </Link>
+          <Link href="/k8s/deployments" className="hover:text-gray-400">
+            Deployments
+          </Link>
+          <Link href="/k8s/timeline" className="hover:text-gray-400">
+            Timeline
+          </Link>
         </div>
       </div>
     </nav>
