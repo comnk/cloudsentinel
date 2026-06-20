@@ -97,6 +97,7 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       GEMINI_KEY: ${GEMINI_KEY}
       JWT_SECRET: ${JWT_SECRET}
+      AGENT_SERVICE_URL: http://ai:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,6 +105,8 @@ services:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
+      ai:
+        condition: service_started
 
   ai:
     build:
@@ -116,6 +119,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      GOOGLE_API_KEY: ${GEMINI_KEY}
+      BACKEND_URL: http://backend:8080
     depends_on:
       kafka:
         condition: service_healthy

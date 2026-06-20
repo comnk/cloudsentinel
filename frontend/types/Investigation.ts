@@ -4,6 +4,8 @@ export type Investigation = {
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED";
   severity: string;
   summary: string | null;
+  rootCause: string | null;
+  confidence: number | null;
   createdAt: string;
   updatedAt: string;
 };

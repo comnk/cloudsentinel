@@ -7,6 +7,8 @@ import com.example.backend.metricsample.MetricSampleRepository;
 import com.example.backend.anomaly.AnomalyDTO;
 import com.example.backend.anomaly.AnomalyEntity;
 import com.example.backend.anomaly.AnomalyRepository;
+import com.example.backend.investigation.AgentTriggerService;
+import com.example.backend.investigation.InvestigationEntity;
 import com.example.backend.investigation.InvestigationService;
 import com.example.backend.k8s.pod.PodDTO;
 import com.example.backend.k8s.pod.PodService;
@@ -35,6 +37,7 @@ public class KafkaConsumerService {
     private final MetricSampleRepository metricSampleRepository;
     private final AnomalyRepository anomalyRepository;
     private final InvestigationService investigationService;
+    private final AgentTriggerService agentTriggerService;
     private final PodService podService;
     private final ClusterEventService clusterEventService;
     private final DeploymentService deploymentService;
@@ -45,6 +48,7 @@ public class KafkaConsumerService {
     public KafkaConsumerService(MetricSampleRepository metricSampleRepository,
             AnomalyRepository anomalyRepository,
             InvestigationService investigationService,
+            AgentTriggerService agentTriggerService,
             PodService podService,
             ClusterEventService clusterEventService,
             DeploymentService deploymentService,
@@ -53,6 +57,7 @@ public class KafkaConsumerService {
         this.metricSampleRepository = metricSampleRepository;
         this.anomalyRepository = anomalyRepository;
         this.investigationService = investigationService;
+        this.agentTriggerService = agentTriggerService;
         this.podService = podService;
         this.clusterEventService = clusterEventService;
         this.deploymentService = deploymentService;
@@ -141,7 +146,8 @@ public class KafkaConsumerService {
                 entity.setExplanation(String.join(" | ", dto.getExplanation()));
             }
             anomalyRepository.save(entity);
-            investigationService.createFromAnomaly(entity);
+            InvestigationEntity inv = investigationService.createFromAnomaly(entity);
+            agentTriggerService.triggerInvestigation(inv, entity);
             log.info("Saved anomaly and opened investigation: type={} severity={}", dto.getType(), dto.getSeverity());
         } catch (Exception e) {
             log.error("Failed to process anomaly event: {}", e.getMessage());

@@ -39,4 +39,15 @@ public class InvestigationController {
         InvestigationStatus status = InvestigationStatus.valueOf(body.get("status"));
         return ResponseEntity.ok(investigationService.updateStatus(id, status));
     }
+
+    @PatchMapping("/{id}/findings")
+    public ResponseEntity<InvestigationEntity> updateFindings(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> body) {
+        String rootCause = body.get("rootCause");
+        String confidenceStr = body.get("confidence");
+        Double confidence = confidenceStr != null ? Double.parseDouble(confidenceStr) : null;
+        String summary = body.get("summary");
+        return ResponseEntity.ok(investigationService.updateFindings(id, rootCause, confidence, summary));
+    }
 }

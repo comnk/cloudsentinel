@@ -111,6 +111,37 @@ export default function InvestigationDetailPage() {
           </div>
         </div>
 
+        {investigation.rootCause ? (
+          <div className="mb-8 border-b pb-6">
+            <h2 className="text-lg font-semibold mb-3">Agent Analysis</h2>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">Confidence</span>
+                <span className={`text-sm font-semibold ${
+                  investigation.confidence != null && investigation.confidence >= 0.8
+                    ? "text-green-600"
+                    : investigation.confidence != null && investigation.confidence >= 0.5
+                    ? "text-yellow-600"
+                    : "text-red-500"
+                }`}>
+                  {investigation.confidence != null
+                    ? `${Math.round(investigation.confidence * 100)}%`
+                    : "—"}
+                </span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Root Cause</p>
+                <p className="text-sm">{investigation.rootCause}</p>
+              </div>
+            </div>
+          </div>
+        ) : investigation.status !== "RESOLVED" ? (
+          <div className="mb-8 border-b pb-6">
+            <h2 className="text-lg font-semibold mb-3">Agent Analysis</h2>
+            <p className="text-sm text-gray-400 italic">Investigation in progress…</p>
+          </div>
+        ) : null}
+
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-3">Evidence</h2>
           {evidence.length === 0 ? (

@@ -33,4 +33,8 @@ public class InvestigationEntity {
     private Instant updatedAt;
 
     private String summary;
+
+    private String rootCause;
+
+    private Double confidence;
 }

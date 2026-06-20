@@ -45,6 +45,17 @@ public class InvestigationService {
         return investigationRepository.save(inv);
     }
 
+    public InvestigationEntity updateFindings(UUID id, String rootCause, Double confidence, String summary) {
+        InvestigationEntity inv = investigationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Investigation not found: " + id));
+        inv.setRootCause(rootCause);
+        inv.setConfidence(confidence);
+        if (summary != null) inv.setSummary(summary);
+        inv.setStatus(InvestigationStatus.RESOLVED);
+        inv.setUpdatedAt(Instant.now());
+        return investigationRepository.save(inv);
+    }
+
     public InvestigationEntity createFromAnomaly(AnomalyEntity anomaly) {
         Instant now = Instant.now();
 

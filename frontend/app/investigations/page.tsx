@@ -57,6 +57,7 @@ export default function InvestigationsPage() {
                 <th className="py-2 pr-4">ID</th>
                 <th className="py-2 pr-4">Severity</th>
                 <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Confidence</th>
                 <th className="py-2 pr-4">Created</th>
                 <th className="py-2">Summary</th>
               </tr>
@@ -77,6 +78,11 @@ export default function InvestigationsPage() {
                   </td>
                   <td className={`py-2 pr-4 font-semibold ${STATUS_COLORS[inv.status] ?? ""}`}>
                     {inv.status.replace("_", " ")}
+                  </td>
+                  <td className="py-2 pr-4">
+                    {inv.confidence != null
+                      ? `${Math.round(inv.confidence * 100)}%`
+                      : <span className="text-gray-400">—</span>}
                   </td>
                   <td className="py-2 pr-4 whitespace-nowrap">
                     {new Date(inv.createdAt).toLocaleString()}
