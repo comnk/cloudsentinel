@@ -132,8 +132,16 @@ metric_generator.py  ←  psutil (real host metrics)
     - UserController / UserService → user management
         ↓ WebSocket (STOMP — stub, not yet implemented)
   Frontend (Next.js App Router)
-    - app/dashboard/page.tsx → main dashboard
-    - app/page.tsx → landing page
+    - app/page.tsx → redirects to /dashboard
+    - app/dashboard/page.tsx → live metric cards (CPU/memory/disk), auto-refreshes every 5s
+    - app/metrics-table/page.tsx → historical metrics table
+    - app/anomalies/page.tsx → detected anomalies table, auto-refreshes every 10s
+    - app/investigations/page.tsx → investigations list, auto-refreshes every 15s
+    - app/investigations/[id]/page.tsx → investigation detail (timeline, evidence, status update)
+    - app/k8s/overview/page.tsx → cluster stat cards (nodes/pods/deployments)
+    - app/k8s/pods/page.tsx → pods table with status badges
+    - app/k8s/deployments/page.tsx → deployments table
+    - app/k8s/timeline/page.tsx → merged anomaly + cluster event feed
 
   AI Agents (not yet connected to pipeline)
     - alert_agent.py, recommendation_agent.py, sentiment_agent.py, research_assistant.py
@@ -162,5 +170,8 @@ metric_generator.py  ←  psutil (real host metrics)
 
 - **Next.js 16 App Router** — this is a newer version with potential breaking changes vs. older Next.js. Read `node_modules/next/dist/docs/` before making framework-level changes (per `frontend/AGENTS.md`).
 - **Tailwind CSS v4** — PostCSS-based config, not the v3 `tailwind.config.js` pattern
-- Pages: `app/page.tsx` (landing), `app/dashboard/page.tsx` (dashboard)
-- Backend API URL configured via `NEXT_PUBLIC_API_URL` env var (default `http://localhost:8080`)
+- **Routing**: `app/page.tsx` does a server-side `redirect("/dashboard")` — there is no landing page
+- **Navbar**: `components/Navbar/Navbar.tsx` — dark slate top bar, uses `usePathname` for active link highlighting; primary links on the left, K8s links grouped on the right
+- **Design system**: `bg-gray-50` body, `bg-white rounded-xl shadow-sm` cards, semantic pill badges for severity (CRITICAL=red, WARNING=amber) and status (OPEN=red, IN_PROGRESS=amber, RESOLVED=green); metric values color-coded green/amber/red by threshold (<65%/<85%/≥85%)
+- **Types**: `types/Metric.ts`, `types/Anomaly.ts`, `types/Investigation.ts` (includes `InvestigationDetail`, `InvestigationEvent`, `InvestigationEvidence`), `types/ClusterEvent.ts`
+- **Backend API URL** configured via `NEXT_PUBLIC_API_URL` env var (default `http://localhost:8080`)

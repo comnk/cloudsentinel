@@ -33,47 +33,54 @@ export default function DeploymentsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-screen">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="p-8">
-        <h1 className="text-2xl font-bold mb-6">Deployments</h1>
-        {loading && <p className="text-gray-500">Loading...</p>}
+      <div className="max-w-screen-xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Deployments</h1>
+
+        {loading && <p className="text-gray-500 text-sm">Loading…</p>}
+
         {!loading && deployments.length === 0 && (
-          <p className="text-gray-500">No deployments found.</p>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10 text-center">
+            <p className="text-gray-500 text-sm">No deployments found.</p>
+          </div>
         )}
+
         {deployments.length > 0 && (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 pr-4">Deployment</th>
-                <th className="py-2 pr-4">Namespace</th>
-                <th className="py-2 pr-4">Replicas</th>
-                <th className="py-2 pr-4">Available</th>
-                <th className="py-2">Last Seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deployments.map((d) => {
-                const healthy =
-                  d.availableReplicas != null &&
-                  d.replicas != null &&
-                  d.availableReplicas >= d.replicas;
-                return (
-                  <tr key={d.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2 pr-4 font-mono text-xs">{d.deploymentName}</td>
-                    <td className="py-2 pr-4">{d.namespace}</td>
-                    <td className="py-2 pr-4">{d.replicas ?? "—"}</td>
-                    <td className={`py-2 pr-4 font-semibold ${healthy ? "text-green-600" : "text-red-500"}`}>
-                      {d.availableReplicas ?? "—"}
-                    </td>
-                    <td className="py-2 text-gray-500 text-xs">
-                      {new Date(d.timestamp).toLocaleString()}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/60">
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Deployment</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Namespace</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Replicas</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Available</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deployments.map((d) => {
+                  const healthy =
+                    d.availableReplicas != null &&
+                    d.replicas != null &&
+                    d.availableReplicas >= d.replicas;
+                  return (
+                    <tr key={d.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-4 font-mono text-xs text-gray-700">{d.deploymentName}</td>
+                      <td className="py-3 px-4 text-gray-600">{d.namespace}</td>
+                      <td className="py-3 px-4 tabular-nums text-gray-700">{d.replicas ?? "—"}</td>
+                      <td className={`py-3 px-4 tabular-nums font-semibold ${healthy ? "text-green-600" : "text-red-500"}`}>
+                        {d.availableReplicas ?? "—"}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-gray-500 whitespace-nowrap">
+                        {new Date(d.timestamp).toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

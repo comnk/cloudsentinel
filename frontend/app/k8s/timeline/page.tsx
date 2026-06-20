@@ -43,19 +43,24 @@ export default function TimelinePage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-screen">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="p-8 max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Event Timeline</h1>
-        {loading && <p className="text-gray-500">Loading...</p>}
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-8">Event Timeline</h1>
+
+        {loading && <p className="text-gray-500 text-sm">Loading…</p>}
+
         {!loading && entries.length === 0 && (
-          <p className="text-gray-500">No events yet.</p>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10 text-center">
+            <p className="text-gray-500 text-sm">No events yet.</p>
+          </div>
         )}
-        <ol className="relative border-l border-gray-200">
+
+        <ol className="relative border-l-2 border-gray-100">
           {entries.map((entry, i) => (
-            <li key={i} className="mb-6 ml-4">
-              <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-white bg-gray-400" />
-              <time className="text-xs text-gray-500">
+            <li key={i} className="mb-5 ml-5">
+              <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-white bg-gray-300" />
+              <time className="text-xs text-gray-400 block mb-1">
                 {new Date(entry.timestamp).toLocaleString()}
               </time>
               {entry.kind === "anomaly" ? (
@@ -72,41 +77,45 @@ export default function TimelinePage() {
 }
 
 function AnomalyEntry({ anomaly }: { anomaly: Anomaly }) {
-  const color =
-    anomaly.severity === "CRITICAL"
-      ? "border-red-500 bg-red-50"
-      : "border-yellow-400 bg-yellow-50";
+  const isCritical = anomaly.severity === "CRITICAL";
   return (
-    <div className={`mt-1 rounded border-l-4 p-3 ${color}`}>
-      <p className="font-semibold text-sm">
-        Anomaly Detected — {anomaly.type}
-        <span className="ml-2 text-xs font-normal text-gray-600">
+    <div
+      className={`rounded-lg border-l-4 p-3 ${
+        isCritical
+          ? "border-red-400 bg-red-50"
+          : "border-amber-400 bg-amber-50"
+      }`}
+    >
+      <p className="font-semibold text-sm text-gray-800">
+        Anomaly — {anomaly.type}
+        <span className={`ml-2 text-xs font-medium ${isCritical ? "text-red-600" : "text-amber-600"}`}>
           [{anomaly.severity}]
         </span>
       </p>
-      <p className="text-sm text-gray-700 mt-0.5">{anomaly.message}</p>
+      <p className="text-sm text-gray-600 mt-0.5">{anomaly.message}</p>
       {anomaly.host && (
-        <p className="text-xs text-gray-500 mt-0.5">host: {anomaly.host}</p>
+        <p className="text-xs text-gray-400 mt-0.5">host: {anomaly.host}</p>
       )}
     </div>
   );
 }
 
 function K8sEventEntry({ event }: { event: ClusterEvent }) {
-  const isWarning = ["OOMKilled", "BackOff", "FailedScheduling", "Killing"].includes(
-    event.reason ?? ""
-  );
-  const color = isWarning ? "border-orange-400 bg-orange-50" : "border-blue-300 bg-blue-50";
+  const isWarning = ["OOMKilled", "BackOff", "FailedScheduling", "Killing"].includes(event.reason ?? "");
   return (
-    <div className={`mt-1 rounded border-l-4 p-3 ${color}`}>
-      <p className="font-semibold text-sm">
+    <div
+      className={`rounded-lg border-l-4 p-3 ${
+        isWarning ? "border-orange-400 bg-orange-50" : "border-blue-300 bg-blue-50"
+      }`}
+    >
+      <p className="font-semibold text-sm text-gray-800">
         {event.reason}
         <span className="ml-2 text-xs font-normal text-gray-500">{event.resource}</span>
       </p>
       {event.message && (
-        <p className="text-sm text-gray-700 mt-0.5 line-clamp-2">{event.message}</p>
+        <p className="text-sm text-gray-600 mt-0.5 line-clamp-2">{event.message}</p>
       )}
-      <p className="text-xs text-gray-500 mt-0.5">ns: {event.namespace}</p>
+      <p className="text-xs text-gray-400 mt-0.5">ns: {event.namespace}</p>
     </div>
   );
 }
