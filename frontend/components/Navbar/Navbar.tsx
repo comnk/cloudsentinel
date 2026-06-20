@@ -7,7 +7,7 @@ export default function Navbar() {
   return (
     <nav className="bg-gray-800 text-white p-4">
       <div className="container mx-auto flex items-center justify-between">
-        <div className="text-xl font-bold">AstraQuant</div>
+        <div className="text-xl font-bold">CloudSentinel</div>
         <div className="space-x-4">
           <Link href="/dashboard" className="hover:text-gray-400">
             Dashboard

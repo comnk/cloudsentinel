@@ -4,22 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AstraQuant is an AI-powered platform for real-time metric monitoring, anomaly detection, and incident management. The system ingests metrics/logs via Kafka, processes them through an AI service, and surfaces results to users through a Spring Boot REST API and Next.js frontend.
+CloudSentinel is an AI-powered platform for real-time metric monitoring, anomaly detection, and incident management. The system ingests metrics/logs via Kafka, processes them through an AI service, and surfaces results to users through a Spring Boot REST API and Next.js frontend.
 
 ## Services
 
-| Service | Tech | Port | Purpose |
-|---|---|---|---|
-| `frontend` | Next.js 16 + TypeScript + Tailwind | 3000 | UI |
-| `backend` | Spring Boot 4 + Java 25 | 8080 | REST API, auth, Kafka producer |
-| `ai` | FastAPI + Python 3.12 | 8000 | AI agents, Kafka consumer, ML inference |
-| `kafka` | Confluent Kafka 7.6 | 9092 | Message bus |
-| `postgres` | PostgreSQL 16 | 5432 | Persistent storage (db: `aiplatform`) |
-| `redis` | Redis 7 | 6379 | Caching |
+| Service    | Tech                               | Port | Purpose                                 |
+| ---------- | ---------------------------------- | ---- | --------------------------------------- |
+| `frontend` | Next.js 16 + TypeScript + Tailwind | 3000 | UI                                      |
+| `backend`  | Spring Boot 4 + Java 25            | 8080 | REST API, auth, Kafka producer          |
+| `ai`       | FastAPI + Python 3.12              | 8000 | AI agents, Kafka consumer, ML inference |
+| `kafka`    | Confluent Kafka 7.6                | 9092 | Message bus                             |
+| `postgres` | PostgreSQL 16                      | 5432 | Persistent storage (db: `aiplatform`)   |
+| `redis`    | Redis 7                            | 6379 | Caching                                 |
 
 ## Running the Stack
 
 **Full stack (Docker):**
+
 ```bash
 docker compose up --build
 ```
@@ -27,16 +28,19 @@ docker compose up --build
 **Individual services for local dev:**
 
 Backend (requires `.env` file with `DB_USERNAME`, `DB_PASSWORD`, `GEMINI_KEY`, `JWT_SECRET`):
+
 ```bash
 cd backend && ./mvnw spring-boot:run
 ```
 
 AI service (activate venv first):
+
 ```bash
 cd ai && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
 ```
 
 Frontend:
+
 ```bash
 cd frontend && npm run dev
 ```
@@ -44,6 +48,7 @@ cd frontend && npm run dev
 ## Build & Test Commands
 
 **Backend:**
+
 ```bash
 cd backend
 ./mvnw clean package          # build JAR
@@ -53,6 +58,7 @@ cd backend
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm run build   # production build
@@ -60,6 +66,7 @@ npm run lint    # ESLint
 ```
 
 **AI:**
+
 ```bash
 cd ai && source venv/bin/activate
 python -m pytest tests/         # run tests
@@ -81,6 +88,7 @@ metric_samples table (PostgreSQL)
 Every 5 seconds, `metric_generator.py` collects real host CPU/memory/disk via `psutil` and publishes to `metrics.raw`. Spring Boot deserializes the JSON, maps it to `MetricSampleEntity`, and saves it via `MetricSampleRepository`.
 
 **Metric event schema** (contract between Python and Java — do not change field names without updating both sides):
+
 ```json
 {
   "timestamp": "2026-05-31T18:00:00Z",
@@ -92,6 +100,7 @@ Every 5 seconds, `metric_generator.py` collects real host CPU/memory/disk via `p
 ```
 
 To start the collector manually:
+
 ```python
 from app.services.metric_generator import run
 run()
@@ -101,13 +110,13 @@ run()
 
 Topics are auto-created by the `kafka-init` container at startup (3 partitions each):
 
-| Topic | Direction | Purpose |
-|---|---|---|
-| `metrics.raw` | Python collector → Backend | Real host metrics (cpu/memory/disk) — **active** |
-| `logs.raw` | Backend → (future) | Raw log events |
-| `features.processed` | (future) → Backend | Processed/engineered features |
-| `anomalies.detected` | (future) → Backend | Anomaly detection results |
-| `incidents.created` | Backend → UI | Incident notifications |
+| Topic                | Direction                  | Purpose                                          |
+| -------------------- | -------------------------- | ------------------------------------------------ |
+| `metrics.raw`        | Python collector → Backend | Real host metrics (cpu/memory/disk) — **active** |
+| `logs.raw`           | Backend → (future)         | Raw log events                                   |
+| `features.processed` | (future) → Backend         | Processed/engineered features                    |
+| `anomalies.detected` | (future) → Backend         | Anomaly detection results                        |
+| `incidents.created`  | Backend → UI               | Incident notifications                           |
 
 The backend bootstrap server is read from `spring.kafka.bootstrap-servers` in `application.properties` (`localhost:9092` locally, overridden to `kafka:29092` in Docker via env var). The AI service reads `KAFKA_BOOTSTRAP_SERVERS` env var, defaulting to `localhost:9092`.
 
