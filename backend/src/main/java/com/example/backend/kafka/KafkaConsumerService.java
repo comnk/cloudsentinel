@@ -80,7 +80,7 @@ public class KafkaConsumerService {
             redisTemplate.opsForValue().set(LATEST_METRIC_KEY, entity);
             log.info("Saved metric: host={} cpu={}", dto.getHost(), dto.getCpuUsage());
         } catch (Exception e) {
-            log.error("Failed to process metric event: {}", e.getMessage());
+            log.error("Failed to process metric event", e);
         }
     }
 

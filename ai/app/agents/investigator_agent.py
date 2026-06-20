@@ -201,7 +201,7 @@ def submit_findings(investigation_id: str, root_cause: str, confidence: float, s
 
 
 investigator_agent = LlmAgent(
-    name="SRE Investigator",
+    name="sre_investigator",
     model=MODEL,
     description="An AI SRE that investigates infrastructure anomalies by gathering evidence from metrics, Kubernetes events, and deployment history, then produces a structured root cause report.",
     instruction="""You are a Site Reliability Engineer (SRE) investigating an infrastructure anomaly.

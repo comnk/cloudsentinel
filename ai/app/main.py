@@ -21,9 +21,18 @@ app.add_middleware(
 app.include_router(router)
 
 
+import logging as _logging
+_log = _logging.getLogger(__name__)
+
+def _run_collector_safe():
+    try:
+        run_collector()
+    except Exception:
+        _log.exception("Metric collector thread crashed")
+
 @app.on_event("startup")
 def start_collector():
-    thread = threading.Thread(target=run_collector, daemon=True)
+    thread = threading.Thread(target=_run_collector_safe, daemon=True)
     thread.start()
 
 

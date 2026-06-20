@@ -20,7 +20,7 @@ def _get_producer() -> Producer:
 
 def collect() -> dict:
     return {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
         "host": socket.gethostname(),
         "cpuUsage": psutil.cpu_percent(interval=1),
         "memoryUsage": psutil.virtual_memory().percent,

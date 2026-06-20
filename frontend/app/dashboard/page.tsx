@@ -52,7 +52,7 @@ export default function DashboardPage() {
     const fetchMetrics = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/metrics/latest`);
-        if (!res.ok) return;
+        if (!res.ok || res.status === 204) return;
         const data: Metric = await res.json();
         setMetrics(data);
         setLastUpdated(new Date());
