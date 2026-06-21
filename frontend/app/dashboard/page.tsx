@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar/Navbar";
 import { Metric } from "@/types/Metric";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 function usageColor(value: number) {
   if (value >= 85) return { bar: "bg-red-500", text: "text-red-600", label: "Critical" };
@@ -48,23 +49,19 @@ export default function DashboardPage() {
   const [metrics, setMetrics] = useState<Metric | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  // Seed with current value from Redis cache
   useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/metrics/latest`);
-        if (!res.ok || res.status === 204) return;
-        const data: Metric = await res.json();
-        setMetrics(data);
-        setLastUpdated(new Date());
-      } catch (e) {
-        console.error("Error fetching metrics:", e);
-      }
-    };
-
-    fetchMetrics();
-    const interval = setInterval(fetchMetrics, 5000);
-    return () => clearInterval(interval);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/metrics/latest`)
+      .then((r) => (r.ok && r.status !== 204 ? r.json() : null))
+      .then((d) => { if (d) { setMetrics(d); setLastUpdated(new Date()); } })
+      .catch(() => {});
   }, []);
+
+  // Live updates via WebSocket
+  const { data: wsMetric, connected } = useWebSocket<Metric>("/topic/metrics");
+  useEffect(() => {
+    if (wsMetric) { setMetrics(wsMetric); setLastUpdated(new Date()); }
+  }, [wsMetric]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -77,11 +74,16 @@ export default function DashboardPage() {
               {metrics?.host ? `Host: ${metrics.host}` : "Waiting for data…"}
             </p>
           </div>
-          {lastUpdated && (
-            <p className="text-xs text-gray-400 mt-1">
-              Updated {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
+          <div className="flex flex-col items-end gap-1">
+            {lastUpdated && (
+              <p className="text-xs text-gray-400">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
+            <span className={`text-xs font-medium ${connected ? "text-green-500" : "text-gray-400"}`}>
+              {connected ? "● Live" : "○ Connecting…"}
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

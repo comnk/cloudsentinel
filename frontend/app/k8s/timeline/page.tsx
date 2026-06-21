@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar/Navbar";
 import { Anomaly } from "@/types/Anomaly";
 import { ClusterEvent } from "@/types/ClusterEvent";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 type TimelineEntry =
   | { kind: "anomaly"; timestamp: string; data: Anomaly }
@@ -16,31 +17,45 @@ export default function TimelinePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch_ = async () => {
+    const load = async () => {
       try {
         const [anomalyRes, eventRes] = await Promise.all([
           fetch(`${API}/anomalies/`),
           fetch(`${API}/k8s/events`),
         ]);
-
         const anomalies: Anomaly[] = anomalyRes.ok ? await anomalyRes.json() : [];
         const events: ClusterEvent[] = eventRes.ok ? await eventRes.json() : [];
-
         const merged: TimelineEntry[] = [
           ...anomalies.map((a) => ({ kind: "anomaly" as const, timestamp: a.timestamp, data: a })),
           ...events.map((e) => ({ kind: "k8s_event" as const, timestamp: e.timestamp, data: e })),
         ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
         setEntries(merged);
       } finally {
         setLoading(false);
       }
     };
-
-    fetch_();
-    const interval = setInterval(fetch_, 15000);
-    return () => clearInterval(interval);
+    load();
   }, []);
+
+  const { data: newAnomaly } = useWebSocket<Anomaly>("/topic/anomalies");
+  useEffect(() => {
+    if (!newAnomaly) return;
+    setEntries((prev) => {
+      const entry: TimelineEntry = { kind: "anomaly", timestamp: newAnomaly.timestamp, data: newAnomaly };
+      if (prev.some((e) => e.kind === "anomaly" && e.data.id === newAnomaly.id)) return prev;
+      return [entry, ...prev];
+    });
+  }, [newAnomaly]);
+
+  const { data: newEvent } = useWebSocket<ClusterEvent>("/topic/events");
+  useEffect(() => {
+    if (!newEvent) return;
+    setEntries((prev) => {
+      const entry: TimelineEntry = { kind: "k8s_event", timestamp: newEvent.timestamp, data: newEvent };
+      if (prev.some((e) => e.kind === "k8s_event" && e.data.id === newEvent.id)) return prev;
+      return [entry, ...prev];
+    });
+  }, [newEvent]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,9 +96,7 @@ function AnomalyEntry({ anomaly }: { anomaly: Anomaly }) {
   return (
     <div
       className={`rounded-lg border-l-4 p-3 ${
-        isCritical
-          ? "border-red-400 bg-red-50"
-          : "border-amber-400 bg-amber-50"
+        isCritical ? "border-red-400 bg-red-50" : "border-amber-400 bg-amber-50"
       }`}
     >
       <p className="font-semibold text-sm text-gray-800">

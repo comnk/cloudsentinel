@@ -13,14 +13,14 @@ public class ClusterEventService {
         this.clusterEventRepository = clusterEventRepository;
     }
 
-    public void save(ClusterEventDTO dto) {
+    public ClusterEventEntity save(ClusterEventDTO dto) {
         ClusterEventEntity entity = new ClusterEventEntity();
         entity.setReason(dto.getReason());
         entity.setMessage(dto.getMessage());
         entity.setNamespace(dto.getNamespace());
         entity.setResource(dto.getResource());
         entity.setTimestamp(dto.getTimestamp() != null ? Instant.parse(dto.getTimestamp()) : Instant.now());
-        clusterEventRepository.save(entity);
+        return clusterEventRepository.save(entity);
     }
 
     public List<ClusterEventEntity> getAll() {

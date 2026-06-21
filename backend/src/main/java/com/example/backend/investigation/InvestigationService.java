@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.example.backend.anomaly.AnomalyEntity;
+import com.example.backend.websocket.WebSocketBroadcastService;
 
 @Service
 public class InvestigationService {
@@ -14,13 +15,16 @@ public class InvestigationService {
     private final InvestigationRepository investigationRepository;
     private final InvestigationEventRepository eventRepository;
     private final InvestigationEvidenceRepository evidenceRepository;
+    private final WebSocketBroadcastService broadcastService;
 
     public InvestigationService(InvestigationRepository investigationRepository,
             InvestigationEventRepository eventRepository,
-            InvestigationEvidenceRepository evidenceRepository) {
+            InvestigationEvidenceRepository evidenceRepository,
+            WebSocketBroadcastService broadcastService) {
         this.investigationRepository = investigationRepository;
         this.eventRepository = eventRepository;
         this.evidenceRepository = evidenceRepository;
+        this.broadcastService = broadcastService;
     }
 
     public List<InvestigationEntity> getAll() {
@@ -42,7 +46,10 @@ public class InvestigationService {
                 .orElseThrow(() -> new IllegalArgumentException("Investigation not found: " + id));
         inv.setStatus(status);
         inv.setUpdatedAt(Instant.now());
-        return investigationRepository.save(inv);
+        InvestigationEntity saved = investigationRepository.save(inv);
+        broadcastService.broadcast("/topic/investigations/" + id, getDetail(id));
+        broadcastService.broadcast("/topic/investigations", saved);
+        return saved;
     }
 
     public InvestigationEntity updateFindings(UUID id, String rootCause, Double confidence, String summary) {
@@ -53,7 +60,10 @@ public class InvestigationService {
         if (summary != null) inv.setSummary(summary);
         inv.setStatus(InvestigationStatus.RESOLVED);
         inv.setUpdatedAt(Instant.now());
-        return investigationRepository.save(inv);
+        InvestigationEntity saved = investigationRepository.save(inv);
+        broadcastService.broadcast("/topic/investigations/" + id, getDetail(id));
+        broadcastService.broadcast("/topic/investigations", saved);
+        return saved;
     }
 
     public InvestigationEntity createFromAnomaly(AnomalyEntity anomaly) {
@@ -67,6 +77,7 @@ public class InvestigationService {
         inv.setCreatedAt(now);
         inv.setUpdatedAt(now);
         investigationRepository.save(inv);
+        broadcastService.broadcast("/topic/investigations", inv);
 
         UUID invId = inv.getId();
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar/Navbar";
 import { InvestigationDetail } from "@/types/Investigation";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 const SEVERITY_BADGE: Record<string, string> = {
   CRITICAL: "bg-red-100 text-red-700 ring-red-200",
@@ -32,21 +33,19 @@ export default function InvestigationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  const fetchDetail = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/investigations/${id}`);
-      if (!res.ok) return;
-      setDetail(await res.json());
-    } catch (e) {
-      console.error("Error fetching investigation:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchDetail();
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/investigations/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setDetail(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [id]);
+
+  // Live investigation updates from agent
+  const { data: wsDetail } = useWebSocket<InvestigationDetail>(`/topic/investigations/${id}`);
+  useEffect(() => {
+    if (wsDetail) setDetail(wsDetail);
+  }, [wsDetail]);
 
   const updateStatus = async (status: string) => {
     setUpdating(true);
@@ -56,7 +55,6 @@ export default function InvestigationDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      await fetchDetail();
     } catch (e) {
       console.error("Error updating status:", e);
     } finally {
@@ -142,29 +140,27 @@ export default function InvestigationDetailPage() {
           </div>
         </div>
 
-        {(investigation.rootCause || investigation.status !== "RESOLVED") && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-4">
-            <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
-              Agent Analysis
-            </h2>
-            {investigation.rootCause ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">Confidence</span>
-                  <span className={`text-sm font-semibold ${confidenceColor}`}>
-                    {confidencePct != null ? `${confidencePct}%` : "—"}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Root Cause</p>
-                  <p className="text-sm text-gray-700">{investigation.rootCause}</p>
-                </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-4">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+            Agent Analysis
+          </h2>
+          {investigation.rootCause ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500">Confidence</span>
+                <span className={`text-sm font-semibold ${confidenceColor}`}>
+                  {confidencePct != null ? `${confidencePct}%` : "—"}
+                </span>
               </div>
-            ) : (
-              <p className="text-sm text-gray-400 italic">Investigation in progress…</p>
-            )}
-          </div>
-        )}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Root Cause</p>
+                <p className="text-sm text-gray-700">{investigation.rootCause}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 italic">Investigation in progress…</p>
+          )}
+        </div>
 
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-4">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Evidence</h2>

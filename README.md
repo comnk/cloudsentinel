@@ -17,10 +17,10 @@ psutil (host metrics)          Kubernetes API
               Backend (Spring Boot)
           - Persists anomalies, metrics, K8s state
           - Triggers AI investigator agent (Gemini)
-          - REST API for frontend
-                       ↓
+          - REST API + WebSocket (STOMP) server
+                       ↓ WebSocket /ws  (STOMP over native WS)
               Frontend (Next.js)
-          - Live metric dashboard
+          - Live metric dashboard (pushed, no polling)
           - Anomaly feed, investigations, cluster view
 ```
 
@@ -138,35 +138,48 @@ python tests/python-test.py
 
 ## Frontend Pages
 
-| Route                     | Description                                                         |
-| ------------------------- | ------------------------------------------------------------------- |
-| `/`                       | Redirects to `/dashboard`                                           |
-| `/dashboard`              | Live CPU, memory, and disk gauges — auto-refreshes every 5s        |
-| `/metrics-table`          | Historical metrics table with color-coded usage values              |
-| `/anomalies`              | Detected anomaly feed with severity badges — auto-refreshes every 10s |
-| `/investigations`         | Investigation list with status and confidence — auto-refreshes every 15s |
-| `/investigations/[id]`    | Investigation detail: timeline, evidence, status controls           |
-| `/k8s/overview`           | Cluster stat cards (nodes, running/failed pods, deployments)        |
-| `/k8s/pods`               | Pod table with status badges and restart counts                     |
-| `/k8s/deployments`        | Deployment replica health                                           |
-| `/k8s/timeline`           | Merged anomaly + cluster event feed, newest first                   |
+| Route                     | Description                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `/`                       | Redirects to `/dashboard`                                                             |
+| `/dashboard`              | Live CPU, memory, and disk gauges — pushed via WebSocket, no polling                 |
+| `/metrics-table`          | Historical metrics table with color-coded usage values                                |
+| `/anomalies`              | Detected anomaly feed — history loaded once via REST, new arrivals pushed via WebSocket |
+| `/investigations`         | Investigation list — history loaded once via REST, new investigations pushed live     |
+| `/investigations/[id]`    | Investigation detail: timeline, evidence, status controls — live agent progress via WebSocket |
+| `/k8s/overview`           | Cluster stat cards (nodes, running/failed pods, deployments)                          |
+| `/k8s/pods`               | Pod table with status badges and restart counts                                       |
+| `/k8s/deployments`        | Deployment replica health                                                             |
+| `/k8s/timeline`           | Merged anomaly + cluster event feed — history via REST, new events pushed live        |
 
 ## Backend REST API
 
 | Method | Path                                  | Description                              |
 | ------ | ------------------------------------- | ---------------------------------------- |
-| GET    | `/metrics/latest`                     | Most recent metric sample                |
+| GET    | `/metrics/latest`                     | Most recent metric sample (from Redis)   |
 | GET    | `/metrics/history`                    | All stored metric samples                |
 | GET    | `/anomalies/`                         | All detected anomalies                   |
 | GET    | `/investigations`                     | All investigations                       |
 | GET    | `/investigations/{id}`                | Investigation detail (timeline, evidence)|
 | PATCH  | `/investigations/{id}/status`         | Update investigation status              |
+| PATCH  | `/investigations/{id}/findings`       | Update root cause, confidence, summary   |
 | GET    | `/k8s/pods`                           | All pod records                          |
 | GET    | `/k8s/deployments`                    | All deployment records                   |
 | GET    | `/k8s/events`                         | All cluster events                       |
 | GET    | `/k8s/nodes`                          | All node records                         |
 
 Auth endpoints (`/auth/register`, `/auth/login`) issue JWTs valid for 1 hour.
+
+## WebSocket API
+
+Connect to `ws://localhost:8080/ws` using STOMP. No authentication required.
+
+| Topic                          | Payload type              | Triggered by                                      |
+| ------------------------------ | ------------------------- | ------------------------------------------------- |
+| `/topic/metrics`               | `MetricSampleEntity`      | Every `metrics.raw` Kafka message                 |
+| `/topic/anomalies`             | `AnomalyEntity`           | Every `anomalies.detected` Kafka message          |
+| `/topic/events`                | `ClusterEventEntity`      | Every `k8s.events` Kafka message                  |
+| `/topic/investigations`        | `InvestigationEntity`     | New investigation created or status/findings updated |
+| `/topic/investigations/{id}`   | `InvestigationDetailResponse` | Status or findings updated for that investigation |
 
 ## Anomaly Detection
 
@@ -185,5 +198,5 @@ When the backend receives an anomaly on `anomalies.detected`, it persists it and
 - **Backend JPA**: `ddl-auto=create-drop` in dev — all tables are dropped and recreated on each restart.
 - **Lombok**: `MetricSampleEntity` uses `@Data` + `@NoArgsConstructor` — the no-arg constructor is required by JPA.
 - **Tailwind CSS v4**: uses `@import "tailwindcss"` in `globals.css`, not a `tailwind.config.js`.
-- **WebSocket**: STOMP config stub exists in `backend/websocket/WebSocketConfig.java` but is not yet implemented.
+- **WebSocket**: STOMP over native WebSocket; endpoint `/ws`; in-memory broker on `/topic`; `WebSocketBroadcastService` handles all broadcasts from Kafka consumers and `InvestigationService`.
 - **K8s collector**: runs as a one-shot script against `kubeconfig`; not yet deployed as a continuous service in Docker Compose.

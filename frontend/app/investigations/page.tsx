@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar/Navbar";
 import { Investigation } from "@/types/Investigation";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 const SEVERITY_BADGE: Record<string, string> = {
   CRITICAL: "bg-red-100 text-red-700 ring-red-200",
@@ -31,28 +32,24 @@ export default function InvestigationsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch_ = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/investigations`);
-        if (!res.ok) return;
-        const data: Investigation[] = await res.json();
-        setInvestigations(
-          data.sort(
-            (a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )
-        );
-      } catch (e) {
-        console.error("Error fetching investigations:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetch_();
-    const interval = setInterval(fetch_, 15000);
-    return () => clearInterval(interval);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/investigations`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: Investigation[]) =>
+        setInvestigations(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+      )
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  // New investigations pushed by backend when anomaly triggers one
+  const { data: wsInvestigation } = useWebSocket<Investigation>("/topic/investigations");
+  useEffect(() => {
+    if (!wsInvestigation) return;
+    setInvestigations((prev) => {
+      const without = prev.filter((i) => i.id !== wsInvestigation.id);
+      return [wsInvestigation, ...without];
+    });
+  }, [wsInvestigation]);
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -110,13 +110,16 @@ run()
 
 Topics are auto-created by the `kafka-init` container at startup (3 partitions each):
 
-| Topic                | Direction                  | Purpose                                          |
-| -------------------- | -------------------------- | ------------------------------------------------ |
-| `metrics.raw`        | Python collector → Backend | Real host metrics (cpu/memory/disk) — **active** |
-| `logs.raw`           | Backend → (future)         | Raw log events                                   |
-| `features.processed` | (future) → Backend         | Processed/engineered features                    |
-| `anomalies.detected` | (future) → Backend         | Anomaly detection results                        |
-| `incidents.created`  | Backend → UI               | Incident notifications                           |
+| Topic                | Producer              | Consumer             | Purpose                          |
+| -------------------- | --------------------- | -------------------- | -------------------------------- |
+| `metrics.raw`        | metric_generator.py   | Backend              | Host CPU/memory/disk every 5s    |
+| `anomalies.detected` | anomaly-service       | Backend              | ML anomaly events                |
+| `k8s.pods`           | k8s-collector         | Backend              | Pod status snapshots             |
+| `k8s.deployments`    | k8s-collector         | Backend              | Deployment replica counts        |
+| `k8s.events`         | k8s-collector         | Backend              | Cluster warning events           |
+| `k8s.nodes`          | k8s-collector         | Backend              | Node status                      |
+| `incidents.created`  | Backend               | (future)             | Incident notifications           |
+| `logs.raw`           | (future)              | (future)             | Raw log events                   |
 
 The backend bootstrap server is read from `spring.kafka.bootstrap-servers` in `application.properties` (`localhost:9092` locally, overridden to `kafka:29092` in Docker via env var). The AI service reads `KAFKA_BOOTSTRAP_SERVERS` env var, defaulting to `localhost:9092`.
 
@@ -126,26 +129,41 @@ The backend bootstrap server is read from `spring.kafka.bootstrap-servers` in `a
 metric_generator.py  ←  psutil (real host metrics)
         ↓ metrics.raw
   Backend (Spring Boot)
-    - KafkaConsumerService → deserialize → MetricSampleRepository.save()
+    - KafkaConsumerService → deserialize → save() → WebSocketBroadcastService
     - KafkaProducerService → publishes to outbound topics
     - SecurityConfig → JWT auth (jjwt 0.11.5)
     - UserController / UserService → user management
-        ↓ WebSocket (STOMP — stub, not yet implemented)
+        ↓ WebSocket (STOMP over native WS, endpoint /ws)
   Frontend (Next.js App Router)
+    - hooks/useWebSocket.ts → typed STOMP hook (reconnects every 5s)
     - app/page.tsx → redirects to /dashboard
-    - app/dashboard/page.tsx → live metric cards (CPU/memory/disk), auto-refreshes every 5s
-    - app/metrics-table/page.tsx → historical metrics table
-    - app/anomalies/page.tsx → detected anomalies table, auto-refreshes every 10s
-    - app/investigations/page.tsx → investigations list, auto-refreshes every 15s
-    - app/investigations/[id]/page.tsx → investigation detail (timeline, evidence, status update)
+    - app/dashboard/page.tsx → live metric cards; seeded via REST, updated via /topic/metrics
+    - app/metrics-table/page.tsx → historical metrics table (REST only)
+    - app/anomalies/page.tsx → history via REST on mount, new arrivals via /topic/anomalies
+    - app/investigations/page.tsx → history via REST on mount, new/updated via /topic/investigations
+    - app/investigations/[id]/page.tsx → live agent progress via /topic/investigations/{id}
     - app/k8s/overview/page.tsx → cluster stat cards (nodes/pods/deployments)
     - app/k8s/pods/page.tsx → pods table with status badges
     - app/k8s/deployments/page.tsx → deployments table
-    - app/k8s/timeline/page.tsx → merged anomaly + cluster event feed
+    - app/k8s/timeline/page.tsx → history via REST; live anomalies + events via /topic/anomalies and /topic/events
 
   AI Agents (not yet connected to pipeline)
     - alert_agent.py, recommendation_agent.py, sentiment_agent.py, research_assistant.py
 ```
+
+## WebSocket Topics
+
+The backend broadcasts on these STOMP topics after every relevant Kafka message or database write:
+
+| Topic                        | Payload                        | Source                                              |
+| ---------------------------- | ------------------------------ | --------------------------------------------------- |
+| `/topic/metrics`             | `MetricSampleEntity`           | `KafkaConsumerService.consumeRawMetrics`            |
+| `/topic/anomalies`           | `AnomalyEntity`                | `KafkaConsumerService.consumeDetectedAnomalies`     |
+| `/topic/events`              | `ClusterEventEntity`           | `KafkaConsumerService.consumeClusterEvent`          |
+| `/topic/investigations`      | `InvestigationEntity`          | `InvestigationService` on create / status / findings |
+| `/topic/investigations/{id}` | `InvestigationDetailResponse`  | `InvestigationService` on status / findings update  |
+
+`WebSocketBroadcastService` is the single point of dispatch (`SimpMessagingTemplate` wrapper). All pages follow the pattern: load history via REST once on mount, then subscribe to a WebSocket topic for live updates — no polling anywhere.
 
 ## Backend Key Details
 
@@ -153,8 +171,8 @@ metric_generator.py  ←  psutil (real host metrics)
 - **JPA**: `ddl-auto=create-drop` in dev — the `metric_samples` table is dropped and recreated on every restart
 - **Lombok**: `MetricSampleEntity` uses `@Data` + `@NoArgsConstructor` — `@NoArgsConstructor` is required by JPA; do not remove it
 - **AI integration**: Spring AI with Google GenAI (`gemini-2.5-flash`), configured via `GEMINI_KEY`
-- **Auth**: JWT via `JwtAuthenticationFilter` + `SecurityConfig`; token expiry 1 hour
-- **WebSocket**: STOMP config stub in `websocket/WebSocketConfig.java` (not yet implemented)
+- **Auth**: JWT via `JwtAuthenticationFilter` + `SecurityConfig`; token expiry 1 hour; `/ws/**` is permit-all (WebSocket handshakes don't carry the JWT)
+- **WebSocket**: STOMP over native WebSocket; endpoint `/ws`; in-memory broker on `/topic`; `WebSocketBroadcastService` (single `SimpMessagingTemplate` wrapper) is the only place that calls `convertAndSend`
 - Backend env vars loaded from `.env` file in the `backend/` directory via `spring.config.import=file:.env[.properties]`
 
 ## AI Service Key Details
@@ -175,3 +193,4 @@ metric_generator.py  ←  psutil (real host metrics)
 - **Design system**: `bg-gray-50` body, `bg-white rounded-xl shadow-sm` cards, semantic pill badges for severity (CRITICAL=red, WARNING=amber) and status (OPEN=red, IN_PROGRESS=amber, RESOLVED=green); metric values color-coded green/amber/red by threshold (<65%/<85%/≥85%)
 - **Types**: `types/Metric.ts`, `types/Anomaly.ts`, `types/Investigation.ts` (includes `InvestigationDetail`, `InvestigationEvent`, `InvestigationEvidence`), `types/ClusterEvent.ts`
 - **Backend API URL** configured via `NEXT_PUBLIC_API_URL` env var (default `http://localhost:8080`)
+- **WebSocket hook**: `hooks/useWebSocket.ts` — generic typed hook using `@stomp/stompjs`; derives the WS URL by replacing `http` with `ws` in `NEXT_PUBLIC_API_URL` and appending `/ws`; reconnects every 5s; call once per topic per component. Pages that need multiple live feeds (e.g. timeline) call the hook twice.

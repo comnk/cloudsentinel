@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar/Navbar";
 import { Anomaly } from "@/types/Anomaly";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 const SEVERITY_BADGE: Record<string, string> = {
   CRITICAL: "bg-red-100 text-red-700 ring-red-200",
@@ -24,23 +25,21 @@ export default function AnomaliesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAnomalies = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/anomalies/`);
-        if (!res.ok) return;
-        const data: Anomaly[] = await res.json();
-        setAnomalies(data);
-      } catch (e) {
-        console.error("Error fetching anomalies:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAnomalies();
-    const interval = setInterval(fetchAnomalies, 10000);
-    return () => clearInterval(interval);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/anomalies/`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: Anomaly[]) => setAnomalies(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  const { data: newAnomaly } = useWebSocket<Anomaly>("/topic/anomalies");
+  useEffect(() => {
+    if (!newAnomaly) return;
+    setAnomalies((prev) => {
+      if (prev.some((a) => a.id === newAnomaly.id)) return prev;
+      return [newAnomaly, ...prev];
+    });
+  }, [newAnomaly]);
 
   return (
     <div className="min-h-screen bg-gray-50">

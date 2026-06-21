@@ -13,11 +13,13 @@ import com.example.backend.investigation.InvestigationService;
 import com.example.backend.k8s.pod.PodDTO;
 import com.example.backend.k8s.pod.PodService;
 import com.example.backend.k8s.event.ClusterEventDTO;
+import com.example.backend.k8s.event.ClusterEventEntity;
 import com.example.backend.k8s.event.ClusterEventService;
 import com.example.backend.k8s.deployment.DeploymentDTO;
 import com.example.backend.k8s.deployment.DeploymentService;
 import com.example.backend.k8s.node.NodeDTO;
 import com.example.backend.k8s.node.NodeService;
+import com.example.backend.websocket.WebSocketBroadcastService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -43,6 +45,7 @@ public class KafkaConsumerService {
     private final DeploymentService deploymentService;
     private final NodeService nodeService;
     private final RedisTemplate<String, MetricSampleEntity> redisTemplate;
+    private final WebSocketBroadcastService broadcastService;
     private final ObjectMapper objectMapper;
 
     public KafkaConsumerService(MetricSampleRepository metricSampleRepository,
@@ -53,7 +56,8 @@ public class KafkaConsumerService {
             ClusterEventService clusterEventService,
             DeploymentService deploymentService,
             NodeService nodeService,
-            RedisTemplate<String, MetricSampleEntity> redisTemplate) {
+            RedisTemplate<String, MetricSampleEntity> redisTemplate,
+            WebSocketBroadcastService broadcastService) {
         this.metricSampleRepository = metricSampleRepository;
         this.anomalyRepository = anomalyRepository;
         this.investigationService = investigationService;
@@ -63,6 +67,7 @@ public class KafkaConsumerService {
         this.deploymentService = deploymentService;
         this.nodeService = nodeService;
         this.redisTemplate = redisTemplate;
+        this.broadcastService = broadcastService;
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
@@ -76,8 +81,9 @@ public class KafkaConsumerService {
             entity.setCpuUsage(dto.getCpuUsage());
             entity.setMemoryUsage(dto.getMemoryUsage());
             entity.setDiskUsage(dto.getDiskUsage());
-            metricSampleRepository.save(entity);
-            redisTemplate.opsForValue().set(LATEST_METRIC_KEY, entity);
+            MetricSampleEntity saved = metricSampleRepository.save(entity);
+            redisTemplate.opsForValue().set(LATEST_METRIC_KEY, saved);
+            broadcastService.broadcast("/topic/metrics", saved);
             log.info("Saved metric: host={} cpu={}", dto.getHost(), dto.getCpuUsage());
         } catch (Exception e) {
             log.error("Failed to process metric event", e);
@@ -100,7 +106,8 @@ public class KafkaConsumerService {
     public void consumeClusterEvent(String message) {
         try {
             ClusterEventDTO dto = objectMapper.readValue(message, ClusterEventDTO.class);
-            clusterEventService.save(dto);
+            ClusterEventEntity saved = clusterEventService.save(dto);
+            broadcastService.broadcast("/topic/events", saved);
             log.info("Saved cluster event: reason={} resource={}", dto.getReason(), dto.getResource());
         } catch (Exception e) {
             log.error("Failed to process cluster event: {}", e.getMessage());
@@ -145,7 +152,8 @@ public class KafkaConsumerService {
             if (dto.getExplanation() != null && !dto.getExplanation().isEmpty()) {
                 entity.setExplanation(String.join(" | ", dto.getExplanation()));
             }
-            anomalyRepository.save(entity);
+            AnomalyEntity savedAnomaly = anomalyRepository.save(entity);
+            broadcastService.broadcast("/topic/anomalies", savedAnomaly);
             InvestigationEntity inv = investigationService.createFromAnomaly(entity);
             agentTriggerService.triggerInvestigation(inv, entity);
             log.info("Saved anomaly and opened investigation: type={} severity={}", dto.getType(), dto.getSeverity());
