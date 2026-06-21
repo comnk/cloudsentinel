@@ -16,15 +16,18 @@ public class InvestigationService {
     private final InvestigationEventRepository eventRepository;
     private final InvestigationEvidenceRepository evidenceRepository;
     private final WebSocketBroadcastService broadcastService;
+    private final IncidentCorrelationService correlationService;
 
     public InvestigationService(InvestigationRepository investigationRepository,
             InvestigationEventRepository eventRepository,
             InvestigationEvidenceRepository evidenceRepository,
-            WebSocketBroadcastService broadcastService) {
+            WebSocketBroadcastService broadcastService,
+            IncidentCorrelationService correlationService) {
         this.investigationRepository = investigationRepository;
         this.eventRepository = eventRepository;
         this.evidenceRepository = evidenceRepository;
         this.broadcastService = broadcastService;
+        this.correlationService = correlationService;
     }
 
     public List<InvestigationEntity> getAll() {
@@ -61,6 +64,11 @@ public class InvestigationService {
         inv.setStatus(InvestigationStatus.RESOLVED);
         inv.setUpdatedAt(Instant.now());
         InvestigationEntity saved = investigationRepository.save(inv);
+
+        int pct = confidence != null ? (int) Math.round(confidence * 100) : 0;
+        addTimelineEvent(id, Instant.now(), "ROOT_CAUSE_IDENTIFIED",
+                "Root cause identified (" + pct + "% confidence): " + rootCause);
+
         broadcastService.broadcast("/topic/investigations/" + id, getDetail(id));
         broadcastService.broadcast("/topic/investigations", saved);
         return saved;
@@ -89,12 +97,14 @@ public class InvestigationService {
             }
         }
 
-        addTimelineEvent(invId, now, "ANOMALY_DETECTED",
+        addTimelineEvent(invId, anomaly.getTimestamp(), "ANOMALY_DETECTED",
                 "Anomaly detected: " + anomaly.getType() + " on " + anomaly.getHost());
         addTimelineEvent(invId, now, "INVESTIGATION_OPENED",
                 "Investigation automatically opened (severity=" + anomaly.getSeverity() + ")");
         addTimelineEvent(invId, now, "EVIDENCE_ATTACHED",
                 "Initial evidence attached from anomaly data");
+
+        correlationService.correlate(invId, anomaly);
 
         return inv;
     }

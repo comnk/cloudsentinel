@@ -64,6 +64,8 @@ def run() -> None:
                     # ML model not loaded or returned nothing — always fall back to thresholds
                     anomaly = threshold_detect(metric)
                     if anomaly:
+                        if feature_window.is_ready():
+                            anomaly.explanation = explain(metric, feature_window.get_averages())
                         publish(producer, anomaly)
             except Exception as e:
                 log.error("Failed to process message: %s", e)

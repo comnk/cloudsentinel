@@ -6,6 +6,18 @@ import Navbar from "@/components/Navbar/Navbar";
 import { InvestigationDetail } from "@/types/Investigation";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
+const TIMELINE_META: Record<string, { dot: string; badge: string; icon: string }> = {
+  DEPLOYMENT_CHANGE:    { dot: "bg-blue-400",   badge: "bg-blue-50 text-blue-700 ring-blue-200",   icon: "⬆" },
+  K8S_EVENT:            { dot: "bg-orange-400", badge: "bg-orange-50 text-orange-700 ring-orange-200", icon: "☸" },
+  METRIC_SPIKE:         { dot: "bg-amber-400",  badge: "bg-amber-50 text-amber-700 ring-amber-200", icon: "↑" },
+  METRIC_READING:       { dot: "bg-gray-300",   badge: "bg-gray-50 text-gray-600 ring-gray-200",   icon: "~" },
+  ANOMALY_DETECTED:     { dot: "bg-red-500",    badge: "bg-red-50 text-red-700 ring-red-200",       icon: "!" },
+  INVESTIGATION_OPENED: { dot: "bg-purple-400", badge: "bg-purple-50 text-purple-700 ring-purple-200", icon: "🔍" },
+  EVIDENCE_ATTACHED:    { dot: "bg-gray-400",   badge: "bg-gray-50 text-gray-600 ring-gray-200",   icon: "📎" },
+  ROOT_CAUSE_IDENTIFIED:{ dot: "bg-green-500",  badge: "bg-green-50 text-green-700 ring-green-200", icon: "✓" },
+  __default:            { dot: "bg-gray-300",   badge: "bg-gray-50 text-gray-600 ring-gray-200",   icon: "·" },
+};
+
 const SEVERITY_BADGE: Record<string, string> = {
   CRITICAL: "bg-red-100 text-red-700 ring-red-200",
   WARNING: "bg-amber-100 text-amber-700 ring-amber-200",
@@ -179,21 +191,34 @@ export default function InvestigationDetailPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Timeline</h2>
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+            Incident Timeline
+          </h2>
           {timeline.length === 0 ? (
             <p className="text-sm text-gray-400">No timeline entries.</p>
           ) : (
-            <ol className="space-y-3 border-l-2 border-gray-100 pl-4">
-              {timeline.map((e) => (
-                <li key={e.id} className="text-sm relative">
-                  <span className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-gray-200 border-2 border-white" />
-                  <span className="text-gray-400 text-xs mr-3">
-                    {new Date(e.timestamp).toLocaleTimeString()}
-                  </span>
-                  <span className="font-medium text-gray-800 mr-2">{e.eventType}</span>
-                  <span className="text-gray-500">{e.description}</span>
-                </li>
-              ))}
+            <ol className="relative border-l-2 border-gray-100 pl-6 space-y-5">
+              {[...timeline]
+                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                .map((e) => {
+                  const meta = TIMELINE_META[e.eventType] ?? TIMELINE_META.__default;
+                  return (
+                    <li key={e.id} className="relative">
+                      <span
+                        className={`absolute -left-[29px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white ${meta.dot}`}
+                      />
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${meta.badge}`}>
+                          {meta.icon} {e.eventType.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-xs text-gray-400 pt-0.5">
+                          {new Date(e.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{e.description}</p>
+                    </li>
+                  );
+                })}
             </ol>
           )}
         </div>

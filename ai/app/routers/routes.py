@@ -8,6 +8,9 @@ from app.services.simulation_service import SCENARIOS, simulation_service
 
 router = APIRouter()
 
+# Strong references so the event loop doesn't GC tasks mid-execution
+_bg_tasks: set = set()
+
 
 class InvestigateRequest(BaseModel):
     investigationId: str
@@ -28,9 +31,11 @@ async def create_incident():
 
 @router.post("/investigate", status_code=202)
 async def investigate(req: InvestigateRequest):
-    asyncio.create_task(
+    task = asyncio.create_task(
         run_investigation(req.investigationId, req.host, req.type, req.severity)
     )
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
     return {"status": "investigation started", "investigationId": req.investigationId}
 
 

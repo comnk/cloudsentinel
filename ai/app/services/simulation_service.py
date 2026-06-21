@@ -104,6 +104,28 @@ class SimulationService:
         producer.produce("metrics.raw", json.dumps(msg))
         producer.flush()
 
+    def _publish_anomaly(
+        self,
+        producer: Producer,
+        host: str,
+        anomaly_type: str,
+        severity: str,
+        score: float,
+        message: str,
+        explanation: list[str],
+    ):
+        msg = {
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            "host": host,
+            "type": anomaly_type,
+            "severity": severity,
+            "score": round(score, 3),
+            "message": message,
+            "explanation": explanation,
+        }
+        producer.produce("anomalies.detected", json.dumps(msg))
+        producer.flush()
+
     def _publish_k8s_event(self, producer: Producer, reason: str, resource: str, message: str):
         msg = {
             "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
@@ -157,10 +179,19 @@ class SimulationService:
             self._publish_metric(producer, host, 10 + i * 2, 45.0, 30.0)
 
         run.add_event("CPU spike initiated — sustained high utilization")
+        anomaly_fired = False
         for i in range(18):
             if not self._sleep(run, 5): return
             cpu = min(94.0, 78.0 + i * 1.0)
             self._publish_metric(producer, host, cpu, 45.0, 30.0)
+            if cpu >= 90.0 and not anomaly_fired:
+                anomaly_fired = True
+                run.add_event(f"CPU threshold breached — {cpu:.0f}% (threshold 90%)")
+                self._publish_anomaly(
+                    producer, host, "HIGH_CPU", "CRITICAL", cpu / 100,
+                    f"CPU usage {cpu:.1f}% exceeded threshold 90.0%",
+                    [f"CPU: +{round((cpu - 22) / 22 * 100):.0f}% (22.0%→{cpu:.1f}%)"],
+                )
 
         run.add_event("CPU spike subsiding")
 
@@ -186,6 +217,11 @@ class SimulationService:
                     f"Container sim-worker-{run.id} exceeded memory limit and was OOMKilled",
                 )
                 run.add_event("OOMKilled — container exceeded memory limit")
+                self._publish_anomaly(
+                    producer, host, "HIGH_MEMORY", "CRITICAL", memory / 100,
+                    f"Memory usage {memory:.1f}% exceeded threshold 90.0% — OOMKilled",
+                    [f"Memory: +{round((memory - 20) / 20 * 100):.0f}% (20.0%→{memory:.1f}%)"],
+                )
 
     def _crash_loop(self, run: SimulationRun, producer: Producer):
         host = f"sim-{run.id}"
@@ -215,6 +251,12 @@ class SimulationService:
                 f"Container {pod} in CrashLoopBackOff — restart count: {cycle + 1}",
             )
             run.add_event(f"Pod crashed — CrashLoopBackOff (restart #{cycle + 1})")
+            if cycle == 2:
+                self._publish_anomaly(
+                    producer, host, "CRASH_LOOP", "CRITICAL", 0.9,
+                    f"Pod {pod} is in CrashLoopBackOff with {cycle + 1} restarts",
+                    [f"Restart count: +{cycle + 1} in under 3 minutes"],
+                )
             if not self._sleep(run, 8): return
 
     def _bad_deployment(self, run: SimulationRun, producer: Producer):
@@ -260,6 +302,15 @@ class SimulationService:
                     f"Container {pod_v2} exceeded memory limit — likely memory leak introduced in v2",
                 )
                 run.add_event("OOMKilled — sample-api:v2 exceeded memory limit (memory leak confirmed)")
+                self._publish_anomaly(
+                    producer, host, "HIGH_MEMORY", "CRITICAL", memory / 100,
+                    f"Memory usage {memory:.1f}% exceeded threshold — OOMKilled after deployment of sample-api:v2",
+                    [
+                        f"Memory: +{round((memory - 25) / 25 * 100):.0f}% (25.0%→{memory:.1f}%)",
+                        f"CPU: +{round((cpu - 12) / 12 * 100):.0f}% (12.0%→{cpu:.1f}%)",
+                        "Deployment rollout: sample-api:v1 → v2 (memory leak introduced)",
+                    ],
+                )
 
 
 simulation_service = SimulationService()
