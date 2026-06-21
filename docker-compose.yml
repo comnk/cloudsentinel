@@ -129,6 +129,23 @@ services:
       redis:
         condition: service_healthy
 
+  k8s-collector:
+    build:
+      context: ./ai
+      dockerfile: k8s-collector/Dockerfile
+    container_name: k8s-collector
+    network_mode: host
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+      K8S_POLL_INTERVAL: "30"
+    volumes:
+      - ${HOME}/.kube/config:/root/.kube/config:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
   anomaly-service:
     build:
       context: ./ai

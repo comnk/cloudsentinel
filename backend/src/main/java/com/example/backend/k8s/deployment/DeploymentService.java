@@ -14,7 +14,9 @@ public class DeploymentService {
     }
 
     public void save(DeploymentDTO dto) {
-        DeploymentEntity entity = new DeploymentEntity();
+        DeploymentEntity entity = deploymentRepository
+                .findByDeploymentNameAndNamespace(dto.getDeploymentName(), dto.getNamespace())
+                .orElse(new DeploymentEntity());
         entity.setDeploymentName(dto.getDeploymentName());
         entity.setNamespace(dto.getNamespace());
         entity.setReplicas(dto.getReplicas());

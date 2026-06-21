@@ -14,7 +14,9 @@ public class NodeService {
     }
 
     public void save(NodeDTO dto) {
-        NodeEntity entity = new NodeEntity();
+        NodeEntity entity = nodeRepository
+                .findByNodeName(dto.getNodeName())
+                .orElse(new NodeEntity());
         entity.setNodeName(dto.getNodeName());
         entity.setStatus(dto.getStatus());
         entity.setTimestamp(Instant.now());

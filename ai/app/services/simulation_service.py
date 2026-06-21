@@ -116,6 +116,18 @@ class SimulationService:
         producer.produce("k8s.events", json.dumps(msg))
         producer.flush()
 
+    def _publish_pod(self, producer: Producer, pod: str, status: str, restarts: int = 0):
+        msg = {
+            "type": "pod_status",
+            "pod": pod,
+            "namespace": "demo-lab",
+            "status": status,
+            "node": "kind-control-plane",
+            "restarts": restarts,
+        }
+        producer.produce("k8s.pods", json.dumps(msg))
+        producer.flush()
+
     def _sleep(self, run: SimulationRun, seconds: float) -> bool:
         """Sleep for `seconds`, returning False early if stopped."""
         return not run._stop.wait(timeout=seconds)
@@ -179,14 +191,17 @@ class SimulationService:
         host = f"sim-{run.id}"
         pod = f"sim-pod-{run.id}"
         run.add_event("Simulation started — pod deployment initiated")
+        self._publish_pod(producer, pod, "Pending")
 
         for cycle in range(6):
             if run._stop.is_set(): return
             run.add_event(f"Pod restart #{cycle + 1}")
+            self._publish_pod(producer, pod, "Running", restarts=cycle)
             for _ in range(3):
                 if not self._sleep(run, 5): return
                 self._publish_metric(producer, host, 25.0, 40.0, 30.0)
 
+            self._publish_pod(producer, pod, "Failed", restarts=cycle + 1)
             self._publish_k8s_event(
                 producer,
                 "BackOff",
@@ -204,7 +219,11 @@ class SimulationService:
 
     def _bad_deployment(self, run: SimulationRun, producer: Producer):
         host = f"sim-{run.id}"
+        pod_v1 = f"sample-api-v1-{run.id}"
+        pod_v2 = f"sample-api-v2-{run.id}"
+
         run.add_event("Simulation started — deploying sample-api:v1 (healthy)")
+        self._publish_pod(producer, pod_v1, "Running")
         self._publish_k8s_event(
             producer,
             "Scaled",
@@ -216,6 +235,8 @@ class SimulationService:
             self._publish_metric(producer, host, 12.0, 25.0, 30.0)
 
         run.add_event("Rolling out sample-api:v2 (faulty — memory leak)")
+        self._publish_pod(producer, pod_v1, "Terminating")
+        self._publish_pod(producer, pod_v2, "Running")
         self._publish_k8s_event(
             producer,
             "Scaled",
@@ -231,11 +252,12 @@ class SimulationService:
             self._publish_metric(producer, host, cpu, memory, 30.0)
             if memory > 90.0 and not oom_sent:
                 oom_sent = True
+                self._publish_pod(producer, pod_v2, "Failed")
                 self._publish_k8s_event(
                     producer,
                     "OOMKilling",
-                    "pod/sample-api-v2-xxx",
-                    "Container sample-api-v2 exceeded memory limit — likely memory leak introduced in v2",
+                    f"pod/{pod_v2}",
+                    f"Container {pod_v2} exceeded memory limit — likely memory leak introduced in v2",
                 )
                 run.add_event("OOMKilled — sample-api:v2 exceeded memory limit (memory leak confirmed)")
 

@@ -14,7 +14,9 @@ public class PodService {
     }
 
     public void save(PodDTO dto) {
-        PodEntity entity = new PodEntity();
+        PodEntity entity = podRepository
+                .findByPodNameAndNamespace(dto.getPodName(), dto.getNamespace())
+                .orElse(new PodEntity());
         entity.setPodName(dto.getPodName());
         entity.setNamespace(dto.getNamespace());
         entity.setStatus(dto.getStatus());
