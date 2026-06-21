@@ -57,6 +57,7 @@ public class SecurityConfig {
                         .requestMatchers("/models/**").permitAll()
                         .requestMatchers("/investigations/**").permitAll()
                         .requestMatchers("/k8s/**").permitAll()
+                        .requestMatchers("/simulations/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session

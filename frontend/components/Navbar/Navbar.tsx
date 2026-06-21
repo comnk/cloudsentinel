@@ -8,6 +8,7 @@ const PRIMARY_LINKS = [
   { href: "/metrics-table", label: "Metrics" },
   { href: "/anomalies", label: "Anomalies" },
   { href: "/investigations", label: "Investigations" },
+  { href: "/simulation-lab", label: "Sim Lab" },
 ];
 
 const K8S_LINKS = [

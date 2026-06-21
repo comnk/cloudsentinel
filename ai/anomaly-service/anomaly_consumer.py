@@ -60,8 +60,8 @@ def run() -> None:
                         explanation=factors,
                     )
                     publish(producer, anomaly)
-                elif not feature_window.is_ready():
-                    # window still warming up — use threshold rules
+                else:
+                    # ML model not loaded or returned nothing — always fall back to thresholds
                     anomaly = threshold_detect(metric)
                     if anomaly:
                         publish(producer, anomaly)

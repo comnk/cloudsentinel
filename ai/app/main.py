@@ -5,8 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.routes import router
 from app.services.metric_generator import run as run_collector
+from app.services import anomaly_detector
 
-app = FastAPI(title="AstraQuant AI Service", description="API for AstraQuant AI Service")
+app = FastAPI(title="CloudSentinel AI Service", description="API for CloudSentinel AI Service")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +35,7 @@ def _run_collector_safe():
 def start_collector():
     thread = threading.Thread(target=_run_collector_safe, daemon=True)
     thread.start()
+    anomaly_detector.start()
 
 
 @app.get("/health")

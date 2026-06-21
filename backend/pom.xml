@@ -11,8 +11,8 @@
 	<groupId>com.example</groupId>
 	<artifactId>astraquant-backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>AstraQuant Backend</name>
-	<description>Backend API for AstraQuant</description>
+	<name>CloudSentinel Backend</name>
+	<description>Backend API for CloudSentinel</description>
 	<url/>
 	<licenses>
 		<license/>
