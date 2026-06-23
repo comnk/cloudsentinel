@@ -15,7 +15,7 @@ if not os.environ.get("GOOGLE_API_KEY"):
 log = logging.getLogger(__name__)
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8080")
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-3-flash-preview"
 
 
 def get_recent_metrics(host: str, last_minutes: int = 30) -> dict:

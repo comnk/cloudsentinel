@@ -61,7 +61,6 @@ def run() -> None:
                     )
                     publish(producer, anomaly)
                 else:
-                    # ML model not loaded or returned nothing — always fall back to thresholds
                     anomaly = threshold_detect(metric)
                     if anomaly:
                         if feature_window.is_ready():

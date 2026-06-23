@@ -150,6 +150,7 @@ python tests/python-test.py
 | `/k8s/pods`               | Pod table with status badges and restart counts                                       |
 | `/k8s/deployments`        | Deployment replica health                                                             |
 | `/k8s/timeline`           | Merged anomaly + cluster event feed — history via REST, new events pushed live        |
+| `/simulation-lab`         | Run built-in failure scenarios (cpu-spike, memory-leak, crash-loop, bad-deployment)   |
 
 ## Backend REST API
 
@@ -166,6 +167,12 @@ python tests/python-test.py
 | GET    | `/k8s/deployments`                    | All deployment records                   |
 | GET    | `/k8s/events`                         | All cluster events                       |
 | GET    | `/k8s/nodes`                          | All node records                         |
+| GET    | `/simulations/scenarios`              | List available simulation scenarios      |
+| GET    | `/simulations`                        | List active/past simulation runs         |
+| POST   | `/simulations`                        | Start a simulation scenario              |
+| GET    | `/simulations/{runId}`                | Get simulation run status and events     |
+| DELETE | `/simulations/{runId}`                | Stop a simulation run                    |
+| GET    | `/models`                             | List ML model versions                   |
 
 Auth endpoints (`/auth/register`, `/auth/login`) issue JWTs valid for 1 hour.
 
@@ -199,4 +206,4 @@ When the backend receives an anomaly on `anomalies.detected`, it persists it and
 - **Lombok**: `MetricSampleEntity` uses `@Data` + `@NoArgsConstructor` — the no-arg constructor is required by JPA.
 - **Tailwind CSS v4**: uses `@import "tailwindcss"` in `globals.css`, not a `tailwind.config.js`.
 - **WebSocket**: STOMP over native WebSocket; endpoint `/ws`; in-memory broker on `/topic`; `WebSocketBroadcastService` handles all broadcasts from Kafka consumers and `InvestigationService`.
-- **K8s collector**: runs as a one-shot script against `kubeconfig`; not yet deployed as a continuous service in Docker Compose.
+- **K8s collector**: deployed as the `k8s-collector` service in Docker Compose (`network_mode: host` to access `~/.kube/config`); also runs embedded inside the `ai` service (same module, started on startup, disabled gracefully if no kubeconfig).
