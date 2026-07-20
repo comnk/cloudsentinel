@@ -13,7 +13,7 @@ public class DeploymentService {
         this.deploymentRepository = deploymentRepository;
     }
 
-    public void save(DeploymentDTO dto) {
+    public DeploymentEntity save(DeploymentDTO dto) {
         DeploymentEntity entity = deploymentRepository
                 .findByDeploymentNameAndNamespace(dto.getDeploymentName(), dto.getNamespace())
                 .orElse(new DeploymentEntity());
@@ -22,7 +22,7 @@ public class DeploymentService {
         entity.setReplicas(dto.getReplicas());
         entity.setAvailableReplicas(dto.getAvailableReplicas());
         entity.setTimestamp(Instant.now());
-        deploymentRepository.save(entity);
+        return deploymentRepository.save(entity);
     }
 
     public List<DeploymentEntity> getAll() {

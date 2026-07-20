@@ -11,11 +11,13 @@ import com.example.backend.investigation.AgentTriggerService;
 import com.example.backend.investigation.InvestigationEntity;
 import com.example.backend.investigation.InvestigationService;
 import com.example.backend.k8s.pod.PodDTO;
+import com.example.backend.k8s.pod.PodEntity;
 import com.example.backend.k8s.pod.PodService;
 import com.example.backend.k8s.event.ClusterEventDTO;
 import com.example.backend.k8s.event.ClusterEventEntity;
 import com.example.backend.k8s.event.ClusterEventService;
 import com.example.backend.k8s.deployment.DeploymentDTO;
+import com.example.backend.k8s.deployment.DeploymentEntity;
 import com.example.backend.k8s.deployment.DeploymentService;
 import com.example.backend.k8s.node.NodeDTO;
 import com.example.backend.k8s.node.NodeService;
@@ -94,7 +96,8 @@ public class KafkaConsumerService {
     public void consumePodStatus(String message) {
         try {
             PodDTO dto = objectMapper.readValue(message, PodDTO.class);
-            podService.save(dto);
+            PodEntity saved = podService.save(dto);
+            broadcastService.broadcast("/topic/pods", saved);
             log.info("Saved pod: name={} namespace={} status={}", dto.getPodName(), dto.getNamespace(),
                     dto.getStatus());
         } catch (Exception e) {
@@ -118,7 +121,8 @@ public class KafkaConsumerService {
     public void consumeDeploymentEvent(String message) {
         try {
             DeploymentDTO dto = objectMapper.readValue(message, DeploymentDTO.class);
-            deploymentService.save(dto);
+            DeploymentEntity saved = deploymentService.save(dto);
+            broadcastService.broadcast("/topic/deployments", saved);
             log.info("Saved deployment: name={} namespace={} replicas={}", dto.getDeploymentName(), dto.getNamespace(),
                     dto.getReplicas());
         } catch (Exception e) {

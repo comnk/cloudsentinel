@@ -13,7 +13,7 @@ public class PodService {
         this.podRepository = podRepository;
     }
 
-    public void save(PodDTO dto) {
+    public PodEntity save(PodDTO dto) {
         PodEntity entity = podRepository
                 .findByPodNameAndNamespace(dto.getPodName(), dto.getNamespace())
                 .orElse(new PodEntity());
@@ -23,7 +23,7 @@ public class PodService {
         entity.setNode(dto.getNode());
         entity.setRestarts(dto.getRestarts());
         entity.setTimestamp(Instant.now());
-        podRepository.save(entity);
+        return podRepository.save(entity);
     }
 
     public List<PodEntity> getAll() {

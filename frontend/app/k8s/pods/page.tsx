@@ -2,16 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar/Navbar";
-
-type Pod = {
-  id: number;
-  podName: string;
-  namespace: string;
-  status: string;
-  node: string;
-  restarts: number;
-  timestamp: string;
-};
+import { Pod } from "@/types/Pod";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 const STATUS_BADGE: Record<string, string> = {
   Running: "bg-green-100 text-green-700 ring-green-200",
@@ -36,9 +28,19 @@ export default function PodsPage() {
       }
     };
     fetchPods();
-    const interval = setInterval(fetchPods, 15000);
-    return () => clearInterval(interval);
   }, []);
+
+  const { data: updatedPod } = useWebSocket<Pod>("/topic/pods");
+  useEffect(() => {
+    if (!updatedPod) return;
+    setPods((prev) => {
+      const idx = prev.findIndex((p) => p.id === updatedPod.id);
+      if (idx === -1) return [updatedPod, ...prev];
+      const next = [...prev];
+      next[idx] = updatedPod;
+      return next;
+    });
+  }, [updatedPod]);
 
   return (
     <div className="min-h-screen bg-gray-50">

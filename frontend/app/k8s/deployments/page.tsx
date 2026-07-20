@@ -2,15 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar/Navbar";
-
-type Deployment = {
-  id: number;
-  deploymentName: string;
-  namespace: string;
-  replicas: number;
-  availableReplicas: number;
-  timestamp: string;
-};
+import { Deployment } from "@/types/Deployment";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -28,9 +21,19 @@ export default function DeploymentsPage() {
       }
     };
     fetchDeployments();
-    const interval = setInterval(fetchDeployments, 15000);
-    return () => clearInterval(interval);
   }, []);
+
+  const { data: updatedDeployment } = useWebSocket<Deployment>("/topic/deployments");
+  useEffect(() => {
+    if (!updatedDeployment) return;
+    setDeployments((prev) => {
+      const idx = prev.findIndex((d) => d.id === updatedDeployment.id);
+      if (idx === -1) return [updatedDeployment, ...prev];
+      const next = [...prev];
+      next[idx] = updatedDeployment;
+      return next;
+    });
+  }, [updatedDeployment]);
 
   return (
     <div className="min-h-screen bg-gray-50">
